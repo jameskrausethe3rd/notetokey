@@ -6,10 +6,8 @@ import pynput.keyboard as kb
 import pynput.mouse as ms
 from functools import partial
 
-# Just testing github integration
-
-global num_frames
-num_frames = 0
+#global num_frames
+#num_frames = 0
 
 global stream
 
@@ -26,44 +24,58 @@ def print_selection(title, var, index):
         l.config(text='Input Device')
 
 def keyPresser(res):
-    if res == 'space':
-        keyboard.press(kb.Key.space)
-    elif res == 'enter':
-        keyboard.press(kb.Key.enter)
-    elif res == 'back':
-        keyboard.press(kb.Key.backspace)
-    elif res == 'leftclick':
-        mouse.press(ms.Button.left)
-    elif res == 'rightclick':
-        mouse.press(ms.Button.right)
+    # Some keys such as space and enter, require a different
+    # method to send keystrokes and needs the if statements
+    # to catch them
+    actions = {'space','enter','backspace'}
+    clicks = {'left click': 'left','right click': 'right'}
+
+    # If res matches any values in actions, it passes it
+    # to kb.Key[res] so each one doesn't need to be specified
+    if res in actions:
+        keyboard.press(kb.Key[res])
+
+    # If res matches any values in clicks, it passes it
+    # to mb.Button[res] so each one doesn't need to be specified
+    elif res in clicks:
+        mouse.press(ms.Button[clicks[res]])
+
+    # Else, non-special characters get pressed
     else:
         keyboard.press(res)
 
 def keyReleaser(lastKey):
-    if lastKey == 'space':
-        keyboard.release(kb.Key.space)
-    elif lastKey == 'enter':
-        keyboard.release(kb.Key.enter)
-    elif lastKey == 'back':
-        keyboard.release(kb.Key.backspace)
-    elif lastKey == 'leftclick':
-        mouse.release(ms.Button.left)
-    elif lastKey == 'rightclick':
-        mouse.release(ms.Button.right)
+    # Some keys such as space and enter, require a different
+    # method to send keystrokes and needs the if statements
+    # to catch them
+    actions = {'space','enter','backspace'}
+    clicks = {'left click': 'left','right click': 'right'}
+
+    # If res matches any values in actions, it passes it
+    # to kb.Key[res] so each one doesn't need to be specified
+    if lastKey in actions:
+        keyboard.release(kb.Key[lastKey])
+
+    # If res matches any values in clicks, it passes it
+    # to mb.Button[res] so each one doesn't need to be specified
+    elif lastKey in clicks:
+        mouse.release(ms.Button[clicks[lastKey]])
+
+    # Else, non-special characters get released
     else:
         keyboard.release(lastKey)       
 
 def startStream():
-    global num_frames
     global stream
 
     p = pyaudio.PyAudio()
     stream = p.open(format=pyaudio.paInt16,
-                                    channels=1,
-                                    rate=FSAMP,
-                                    input=True,
-                                    frames_per_buffer=FRAME_SIZE,
-                                    input_device_index=input_index)
+                    channels=1,
+                    rate=FSAMP,
+                    input=True,
+                    frames_per_buffer=FRAME_SIZE,
+                    input_device_index=input_index)
+
     stream.start_stream()
 
     # Create Hanning window function
@@ -72,10 +84,10 @@ def startStream():
     # Dictionary of Hz-to-key
     r = {(164): 'space',
         (99):  'escape',
-        (105): 'leftclick',
-        (117): 'rightclick',
+        (105): 'left click',
+        (117): 'right click',
         (128):  'enter',
-        (146):  'back',
+        (146):  'backspace',
 
         (158): 'z',
         (175): 'x',
@@ -109,44 +121,66 @@ def startStream():
 
     # Print initial text
     print ('sampling at', FSAMP, 'Hz with max resolution of', FREQ_STEP, 'Hz')
-    print
-
-    # As long as we are getting data:
-    keyDown = "false"
+    
+    # Declare keyDown, lastKey, and num_frames outside of the loop
+    # since their value needs to be retained between loops
+    keyDown = False
     lastKey = ""
-    while stream.is_active():
+    num_frames = 0
 
-        window.update()
+    # As long as we are getting data, register keys. If stream stops, 
+    # catch the exception and print it:
+    try:
+        while stream.is_active():
 
-        # Shift the buffer down and new data in
-        buf[:-FRAME_SIZE] = buf[FRAME_SIZE:]
-        buf[-FRAME_SIZE:] = np.frombuffer(stream.read(FRAME_SIZE), np.int16)
+            # Update the Tkinter window
+            window.update()
 
-        # Run the FFT on the windowed buffer
-        fft = np.fft.rfft(buf * windows)
+            # Shift the buffer down and new data in
+            buf[:-FRAME_SIZE] = buf[FRAME_SIZE:]
+            buf[-FRAME_SIZE:] = np.frombuffer(stream.read(FRAME_SIZE), np.int16)
 
-        # Get frequency of maximum response in range
-        freq = int((np.abs(fft[imin:imax]).argmax() + imin) * FREQ_STEP)
+            # Run the FFT on the windowed buffer
+            fft = np.fft.rfft(buf * windows)
 
-        # Console output once we have a full buffer
-        num_frames += 1
+            # Get frequency of maximum response in range
+            freq = int((np.abs(fft[imin:imax]).argmax() + imin) * FREQ_STEP)
 
-        if num_frames >= FRAMES_PER_FFT:
-            res = ""
-            #print (freq)
-            if(freq in r):
-                res = r[freq]
-            if res == "" and keyDown == "true":
-                print (lastKey + " has been released")
-                keyReleaser(lastKey)
-                keyDown = "false"
-                raiseButton(lastKey)
-            if res != "" and keyDown == "false":
-                print (res + " has been pressed down")
-                keyPresser(res)
-                keyDown = "true"
-                lastKey = res
-                lowerButton(res)
+            # Console output once we have a full buffer
+            num_frames += 1
+
+            if num_frames >= FRAMES_PER_FFT:
+
+                # res is the value of the current key being held
+                res = ""
+
+                #print (freq)
+
+                # If the reported frequency is in the dictionary of values,
+                # the designated key is assigned to res
+                if(freq in r):
+                    res = r[freq]
+
+                # If res is blank,the last held key is released,
+                # as well as tells Tkinter to release the key visually
+                if res == "" and keyDown == True:
+                    print (lastKey + " has been released")
+                    keyReleaser(lastKey)
+                    keyDown = False
+                    raiseButton(lastKey)
+                
+                # If res has a value,the key is pressed,
+                # as well as tells Tkinter to press the key visually
+                if res != "" and keyDown == False:
+                    print (res + " has been pressed down")
+                    keyPresser(res)
+                    keyDown = True
+                    lastKey = res
+                    lowerButton(res)
+    
+    # catches the exception OSError for when the stop button is pressed
+    except OSError:
+        print("Stream has stopped")
 
 def stopStream():
     stream.close()
@@ -282,7 +316,7 @@ actionLayout = LabelFrame(window, text='Actions', padx=20,pady=5)
 actionLayout.pack(pady=20,padx=10)
 
 # List with lists of each rows
-misc =[["BACK", "ENTER", "ESC", "SPACE"], ["LEFTCLICK", "RIGHTCLICK"]]
+misc =[["BACKSPACE", "ESCAPE"], ["ENTER", "SPACE"], ["LEFT CLICK", "RIGHT CLICK"]]
 
 # For loop for the action keys and generate it into the right layout
 # loop goes through the 2 main elements
@@ -306,7 +340,7 @@ for j in range(0,len(misc)):
         if j == 0:
             globals()['button%s' % misc[j][i]].grid(row =j, column=i)
         else:
-            globals()['button%s' % misc[j][i]].grid(row =j, column=i,columnspan=j*3)
+            globals()['button%s' % misc[j][i]].grid(row =j, column=i)
 
 # Create and pack the Start and Stop button that execute the startStream and stopStream
 # functions respectively

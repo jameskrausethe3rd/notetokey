@@ -112,7 +112,10 @@ def displaySelection(title, var, index):
 def calibrate(key):
     # Calibrate the values of the dictionary holding
     # the frequencies and the cooresponding button
-    if key.lower() in letterDictionary.assignments:
+    if key.lower() in letters.assignments:
+
+        # Implement waiting logic so there is time for the user to play the sound
+        # they want to change the letter to
         return
 
 def keyPresser(res):
@@ -160,6 +163,7 @@ def keyReleaser(lastKey):
 def startStream():
     global stream
     settings = pyaudioSettings()
+    
 
     p = pyaudio.PyAudio()
     stream = p.open(format=pyaudio.paInt16,
@@ -220,9 +224,9 @@ def startStream():
 
                 # If the reported frequency is in the dictionary of values,
                 # the designated key is assigned to res
-                if(freq in letterDictionary.assignments.values()):
-                    key_list = list(letterDictionary.assignments.keys())
-                    val_list = list(letterDictionary.assignments.values())
+                if(freq in letters.assignments.values()):
+                    key_list = list(letters.assignments.keys())
+                    val_list = list(letters.assignments.values())
                     position = val_list.index(freq)
                     res = key_list[position]
 
@@ -297,7 +301,12 @@ inputLayout.pack(pady=20,padx=10)
 l = Label(inputLayout, text='Selected Device')
 l.grid(row =0, column=0, padx=5,pady=5,sticky='w')
 
+# Instantiates selectedInput object to currentInput
 currentInput = selectedInput()
+
+# Instantiates letterDictionary object to letters
+letters = letterDictionary()
+
 # For loop for the input Devices and generate the variables and rows for it
 for i in range(0, len(inputs)):
     inputName = inputs[i]

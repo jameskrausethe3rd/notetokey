@@ -6,12 +6,14 @@ import pynput.keyboard as kb
 import pynput.mouse as ms
 from functools import partial
 
+global stream
+
 class letterDictionary:
     assignments = {
             # Each freq should be a full step higher than the last
             # Low E String
             'space':164,
-            'escape':99,
+            'esc':99,
             'left click':105, 
             'right click':117, 
             'enter':128,  
@@ -100,24 +102,29 @@ class pyaudioSettings:
         # See docs for numpy.rfftfreq()
         return self.number_to_freq(n)/self.FREQ_STEP
 
-def print_selection(title, var, index):
+def displaySelection(title, var, index):
     if(var.get() == 1):
-        l.config(text=title)
         currentInput.setSelectedInput(index)
+        l.config(text=title)   
     else:
-        l.config(text='Please Select Input Device')
+        l.config(text="Please select a device")
 
 def calibrate(key):
     # Calibrate the values of the dictionary holding
     # the frequencies and the cooresponding button
-    if key.lower() in letterDictionary.assignments:
+    if key.lower() in letters.assignments:
+
+        # Implement waiting logic so there is time for the user to play the sound
+        # they want to change the letter to.
+        # Basically wait 2 seconds, then
+        # key.value = freq
         return
 
 def keyPresser(res):
     # Some keys such as space and enter, require a different
     # method to send keystrokes and needs the if statements
     # to catch them
-    actions = {'space','enter','backspace','escape'}
+    actions = {'space','enter','backspace','esc'}
     clicks = {'left click': 'left','right click': 'right'}
 
     # If res matches any values in actions, it passes it
@@ -138,7 +145,7 @@ def keyReleaser(lastKey):
     # Some keys such as space and enter, require a different
     # method to send keystrokes and needs the if statements
     # to catch them
-    actions = {'space','enter','backspace','escape'}
+    actions = {'space','enter','backspace','esc'}
     clicks = {'left click': 'left','right click': 'right'}
 
     # If res matches any values in actions, it passes it
@@ -156,8 +163,9 @@ def keyReleaser(lastKey):
         keyboard.release(lastKey)       
 
 def startStream():
-
+    global stream
     settings = pyaudioSettings()
+    
 
     p = pyaudio.PyAudio()
     stream = p.open(format=pyaudio.paInt16,
@@ -218,9 +226,9 @@ def startStream():
 
                 # If the reported frequency is in the dictionary of values,
                 # the designated key is assigned to res
-                if(freq in letterDictionary.assignments.values()):
-                    key_list = list(letterDictionary.assignments.keys())
-                    val_list = list(letterDictionary.assignments.values())
+                if(freq in letters.assignments.values()):
+                    key_list = list(letters.assignments.keys())
+                    val_list = list(letters.assignments.values())
                     position = val_list.index(freq)
                     res = key_list[position]
 
@@ -276,7 +284,6 @@ def getInputs():
     # returns list a
     return a
 
-
 # Instantiate mouse and keyboard objects
 keyboard = kb.Controller()
 mouse = ms.Controller()
@@ -296,16 +303,20 @@ inputLayout.pack(pady=20,padx=10)
 l = Label(inputLayout, text='Selected Device')
 l.grid(row =0, column=0, padx=5,pady=5,sticky='w')
 
+# Instantiates selectedInput object to currentInput
 currentInput = selectedInput()
+
+# Instantiates letterDictionary object to letters
+letters = letterDictionary()
+
 # For loop for the input Devices and generate the variables and rows for it
 for i in range(0, len(inputs)):
     inputName = inputs[i]
     globals()['varName%s' % i] = inputName
     globals()['var%s' % i] = IntVar()
-    commandArgs = partial(print_selection, inputName, globals()['var%s' % i], i)
+    commandArgs = partial(displaySelection, inputName, globals()['var%s' % i], i)
     globals()['c%s' % i] = Checkbutton(inputLayout, text=inputName,variable=globals()['var%s' % i], onvalue=1, offvalue=0, command=commandArgs, anchor='w')
     globals()['c%s' % i].grid(row =i+1, column=0, padx=5,pady=5,sticky='w')
-
 
 # Create a layout for the Keyboard buttons
 keyLayout = LabelFrame(window, text='Keyboard', padx=20,pady=5)
@@ -342,7 +353,7 @@ actionLayout = LabelFrame(window, text='Actions', padx=20,pady=5)
 actionLayout.pack(pady=20,padx=10)
 
 # List with lists of each rows
-misc =[["BACKSPACE", "ESCAPE"], ["ENTER", "SPACE"], ["LEFT CLICK", "RIGHT CLICK"]]
+misc =[["BACKSPACE", "ESC"], ["ENTER", "SPACE"], ["LEFT CLICK", "RIGHT CLICK"]]
 
 # For loop for the action keys and generate it into the right layout
 # loop goes through the 2 main elements

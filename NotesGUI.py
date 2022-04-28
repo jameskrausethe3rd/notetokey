@@ -21,13 +21,13 @@ def print_selection(title, var, index):
         l.config(text=title)
         input_index = index
     else:
-        l.config(text='Input Device')
+        l.config(text='Please Select Input Device')
 
 def keyPresser(res):
     # Some keys such as space and enter, require a different
     # method to send keystrokes and needs the if statements
     # to catch them
-    actions = {'space','enter','backspace'}
+    actions = {'space','enter','backspace','escape'}
     clicks = {'left click': 'left','right click': 'right'}
 
     # If res matches any values in actions, it passes it
@@ -48,7 +48,7 @@ def keyReleaser(lastKey):
     # Some keys such as space and enter, require a different
     # method to send keystrokes and needs the if statements
     # to catch them
-    actions = {'space','enter','backspace'}
+    actions = {'space','enter','backspace','escape'}
     clicks = {'left click': 'left','right click': 'right'}
 
     # If res matches any values in actions, it passes it
@@ -76,19 +76,26 @@ def startStream():
                     frames_per_buffer=FRAME_SIZE,
                     input_device_index=input_index)
 
-    stream.start_stream()
+    if input_index == -1:
+        return
+    else:
+        stream.start_stream()
 
     # Create Hanning window function
     windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, SAMPLES_PER_FFT, False)))
 
     # Dictionary of Hz-to-key
-    r = {(164): 'space',
+    r = {
+        # Each freq should be a full step higher than the last
+        # Low E String
+        (164): 'space',
         (99):  'escape',
         (105): 'left click',
         (117): 'right click',
         (128):  'enter',
         (146):  'backspace',
 
+        # A String
         (158): 'z',
         (175): 'x',
         (199): 'c',
@@ -97,6 +104,7 @@ def startStream():
         (275): 'n',
         (310): 'm',
 
+        # D String
         (263): 'a',
         (292): 's',
         (328): 'd',
@@ -107,6 +115,7 @@ def startStream():
         (585): 'k',
         (656): 'l',
 
+        # G String
         (351): 'q',
         (392): 'w',
         (439): 'e',
@@ -183,26 +192,34 @@ def startStream():
         print("Stream has stopped")
 
 def stopStream():
+    # Closes PyAudio stream
     stream.close()
 
 def lowerButton(letter):
+    # Takes value from res, converts to upper, references
+    # the correct button for that letter, and sets it to sunken
     globals()['button%s' % letter.upper()].config(relief=SUNKEN)
 
 def raiseButton(letter):
+    # Takes value from res, converts to upper, references
+    # the correct button for that letter, and sets it to raised
     globals()['button%s' % letter.upper()].config(relief=RAISED)
 
 def getInputs():
+    # Creates PyAudio object to variable p, sets info to device inputs
+    # and sets numdevices to the deviceCount
     p = pyaudio.PyAudio()
-    info = p.get_host_api_info_by_index(0)
-    numdevices = info.get('deviceCount')
+    numdevices = p.get_host_api_info_by_index(0).get('deviceCount')
 
+    # Creates list a with all input names
     a = []
 
+    # For loop to add each input name to a
     for i in range(0, numdevices):
         if (p.get_device_info_by_host_api_device_index(0, i).get('maxInputChannels')) > 0:
-            inputName = p.get_device_info_by_host_api_device_index(0, i).get('name')
-            a.append(inputName)
+            a.append(p.get_device_info_by_host_api_device_index(0, i).get('name'))
 
+    # returns list a
     return a
 ######################################################################
 # Feel free to play with these numbers. Might want to change NOTE_MIN
@@ -233,9 +250,10 @@ FREQ_STEP = float(FSAMP)/SAMPLES_PER_FFT
 # These three functions are based upon this very useful webpage:
 # https://newt.phys.unsw.edu.au/jw/notes.html
 
-def freq_to_number(f): return 69 + 12*np.log2(f/440.0)
-def number_to_freq(n): return 440 * 2.0**((n-69)/12.0)
-def note_name(n): return NOTE_NAMES[n % 12] + str(n/12 - 1)
+def freq_to_number(f): 
+    return 69 + 12*np.log2(f/440.0)
+def number_to_freq(n): 
+    return 440 * 2.0**((n-69)/12.0)
 
 ######################################################################
 # Ok, ready to go now.
@@ -243,7 +261,9 @@ def note_name(n): return NOTE_NAMES[n % 12] + str(n/12 - 1)
 
 # Get min/max index within FFT of notes we care about.
 # See docs for numpy.rfftfreq()
-def note_to_fftbin(n): return number_to_freq(n)/FREQ_STEP
+def note_to_fftbin(n): 
+    return number_to_freq(n)/FREQ_STEP
+    
 imin = max(0, int(np.floor(note_to_fftbin(NOTE_MIN-1))))
 imax = min(SAMPLES_PER_FFT, int(np.ceil(note_to_fftbin(NOTE_MAX+1))))
 

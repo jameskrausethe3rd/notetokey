@@ -115,7 +115,9 @@ def calibrate(key):
     if key.lower() in letters.assignments:
 
         # Implement waiting logic so there is time for the user to play the sound
-        # they want to change the letter to
+        # they want to change the letter to.
+        # Basically wait 2 seconds, then
+        # key.value = freq
         return
 
 def keyPresser(res):

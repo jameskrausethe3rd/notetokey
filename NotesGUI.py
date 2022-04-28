@@ -6,67 +6,111 @@ import pynput.keyboard as kb
 import pynput.mouse as ms
 from functools import partial
 
-global stream
+class letterDictionary:
+    assignments = {
+            # Each freq should be a full step higher than the last
+            # Low E String
+            'space':164,
+            'escape':99,
+            'left click':105, 
+            'right click':117, 
+            'enter':128,  
+            'backspace':146,  
 
-global input_index
-input_index = -1
+            # A String
+            'z':158,
+            'x':175, 
+            'c':199, 
+            'v':222, 
+            'b':246, 
+            'n':275, 
+            'm':310, 
 
-r = {
-        # Each freq should be a full step higher than the last
-        # Low E String
-        'space':164,
-        'escape':99,
-        'left click':105, 
-        'right click':117, 
-        'enter':128,  
-        'backspace':146,  
+            # D String
+            'a':263, 
+            's':292, 
+            'd':328, 
+            'f':369, 
+            'g':416, 
+            'h':468, 
+            'j':521, 
+            'k':585, 
+            'l':656, 
 
-        # A String
-        'z':158,
-        'x':175, 
-        'c':199, 
-        'v':222, 
-        'b':246, 
-        'n':275, 
-        'm':310, 
+            # G String
+            'q':351, 
+            'w':392, 
+            'e':439, 
+            'r':492, 
+            't':556, 
+            'y':621, 
+            'u':697, 
+            'i':785, 
+            'o':878, 
+            'p':990
+            }
 
-        # D String
-        'a':263, 
-        's':292, 
-        'd':328, 
-        'f':369, 
-        'g':416, 
-        'h':468, 
-        'j':521, 
-        'k':585, 
-        'l':656, 
+class selectedInput:
+    input_index = -1
 
-        # G String
-        'q':351, 
-        'w':392, 
-        'e':439, 
-        'r':492, 
-        't':556, 
-        'y':621, 
-        'u':697, 
-        'i':785, 
-        'o':878, 
-        'p':990
-        }
+    def setSelectedInput(self, index):
+        self.input_index = index
+
+class pyaudioSettings:
+
+    def __init__(self):
+        ######################################################################
+        # Feel free to play with these numbers. Might want to change NOTE_MIN
+        # and NOTE_MAX especially for guitar/bass. Probably want to keep
+        # FRAME_SIZE and FRAMES_PER_FFT to be powers of two.
+
+        self.NOTE_MIN = 20       # C4
+        self.NOTE_MAX = 500     # A4
+        self.FSAMP = 48000      # Sampling frequency in Hz
+        self.FRAME_SIZE = 1024   # How many samples per frame?
+        self.FRAMES_PER_FFT = 8  # FFT takes average across how many frames?
+
+        ######################################################################
+        # Derived quantities from constants above. Note that as
+        # SAMPLES_PER_FFT goes up, the frequency step size decreases (so
+        # resolution increases); however, it will incur more delay to process
+        # new sounds.
+
+        self.SAMPLES_PER_FFT = self.FRAME_SIZE*self.FRAMES_PER_FFT
+        self.FREQ_STEP = float(self.FSAMP)/self.SAMPLES_PER_FFT
+
+        self.imin = max(0, int(np.floor(self.note_to_fftbin(self.NOTE_MIN-1))))
+        self.imax = min(self.SAMPLES_PER_FFT, int(np.ceil(self.note_to_fftbin(self.NOTE_MAX+1))))
+
+        # Allocate space to run an FFT. 
+        self.buf = np.zeros(self.SAMPLES_PER_FFT, dtype=np.float32)
+        
+    ######################################################################
+    # These three functions are based upon this very useful webpage:
+    # https://newt.phys.unsw.edu.au/jw/notes.html
+
+    def freq_to_number(self, f): 
+        return 69 + 12*np.log2(f/440.0)
+
+    def number_to_freq(self, n): 
+        return 440 * 2.0**((n-69)/12.0)
+
+    def note_to_fftbin(self, n): 
+        # Get min/max index within FFT of notes we care about.
+        # See docs for numpy.rfftfreq()
+        return self.number_to_freq(n)/self.FREQ_STEP
 
 def print_selection(title, var, index):
-    global input_index
-
     if(var.get() == 1):
         l.config(text=title)
-        input_index = index
+        currentInput.setSelectedInput(index)
     else:
         l.config(text='Please Select Input Device')
 
 def calibrate(key):
     # Calibrate the values of the dictionary holding
     # the frequencies and the cooresponding button
-    if key.lower() in r:
+    if key.lower() in letterDictionary.assignments:
         return
 
 def keyPresser(res):
@@ -112,29 +156,31 @@ def keyReleaser(lastKey):
         keyboard.release(lastKey)       
 
 def startStream():
-    global stream
+
+    settings = pyaudioSettings()
 
     p = pyaudio.PyAudio()
     stream = p.open(format=pyaudio.paInt16,
                     channels=1,
-                    rate=FSAMP,
+                    rate=settings.FSAMP,
                     input=True,
-                    frames_per_buffer=FRAME_SIZE,
-                    input_device_index=input_index)
+                    frames_per_buffer=settings.FRAME_SIZE,
+                    input_device_index=currentInput.input_index)
 
-    if input_index == -1:
+    if currentInput.input_index == -1:
+        print("Select input")
         return
     else:
         stream.start_stream()
 
     # Create Hanning window function
-    windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, SAMPLES_PER_FFT, False)))
+    windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, settings.SAMPLES_PER_FFT, False)))
 
     # Dictionary of Hz-to-key
    
 
     # Print initial text
-    print ('sampling at', FSAMP, 'Hz with max resolution of', FREQ_STEP, 'Hz')
+    print ('sampling at', settings.FSAMP, 'Hz with max resolution of', settings.FREQ_STEP, 'Hz')
     
     # Declare keyDown, lastKey, and num_frames outside of the loop
     # since their value needs to be retained between loops
@@ -151,19 +197,19 @@ def startStream():
             window.update()
 
             # Shift the buffer down and new data in
-            buf[:-FRAME_SIZE] = buf[FRAME_SIZE:]
-            buf[-FRAME_SIZE:] = np.frombuffer(stream.read(FRAME_SIZE), np.int16)
+            settings.buf[:-settings.FRAME_SIZE] = settings.buf[settings.FRAME_SIZE:]
+            settings.buf[-settings.FRAME_SIZE:] = np.frombuffer(stream.read(settings.FRAME_SIZE), np.int16)
 
             # Run the FFT on the windowed buffer
-            fft = np.fft.rfft(buf * windows)
+            fft = np.fft.rfft(settings.buf * windows)
 
             # Get frequency of maximum response in range
-            freq = int((np.abs(fft[imin:imax]).argmax() + imin) * FREQ_STEP)
+            freq = int((np.abs(fft[settings.imin:settings.imax]).argmax() + settings.imin) * settings.FREQ_STEP)
 
             # Console output once we have a full buffer
             num_frames += 1
 
-            if num_frames >= FRAMES_PER_FFT:
+            if num_frames >= settings.FRAMES_PER_FFT:
 
                 # res is the value of the current key being held
                 res = ""
@@ -172,9 +218,9 @@ def startStream():
 
                 # If the reported frequency is in the dictionary of values,
                 # the designated key is assigned to res
-                if(freq in r.values()):
-                    key_list = list(r.keys())
-                    val_list = list(r.values())
+                if(freq in letterDictionary.assignments.values()):
+                    key_list = list(letterDictionary.assignments.keys())
+                    val_list = list(letterDictionary.assignments.values())
                     position = val_list.index(freq)
                     res = key_list[position]
 
@@ -229,54 +275,7 @@ def getInputs():
 
     # returns list a
     return a
-######################################################################
-# Feel free to play with these numbers. Might want to change NOTE_MIN
-# and NOTE_MAX especially for guitar/bass. Probably want to keep
-# FRAME_SIZE and FRAMES_PER_FFT to be powers of two.
 
-NOTE_MIN = 20       # C4
-NOTE_MAX = 500     # A4
-FSAMP = 48000      # Sampling frequency in Hz
-FRAME_SIZE = 1024   # How many samples per frame?
-FRAMES_PER_FFT = 8  # FFT takes average across how many frames?
-
-######################################################################
-# Derived quantities from constants above. Note that as
-# SAMPLES_PER_FFT goes up, the frequency step size decreases (so
-# resolution increases); however, it will incur more delay to process
-# new sounds.
-
-SAMPLES_PER_FFT = FRAME_SIZE*FRAMES_PER_FFT
-FREQ_STEP = float(FSAMP)/SAMPLES_PER_FFT
-
-######################################################################
-# For printing out notes
-
-#NOTE_NAMES = 'C C# D D# E F F# G G# A A# B'.split()
-
-######################################################################
-# These three functions are based upon this very useful webpage:
-# https://newt.phys.unsw.edu.au/jw/notes.html
-
-def freq_to_number(f): 
-    return 69 + 12*np.log2(f/440.0)
-def number_to_freq(n): 
-    return 440 * 2.0**((n-69)/12.0)
-
-######################################################################
-# Ok, ready to go now.
-######################################################################
-
-# Get min/max index within FFT of notes we care about.
-# See docs for numpy.rfftfreq()
-def note_to_fftbin(n): 
-    return number_to_freq(n)/FREQ_STEP
-
-imin = max(0, int(np.floor(note_to_fftbin(NOTE_MIN-1))))
-imax = min(SAMPLES_PER_FFT, int(np.ceil(note_to_fftbin(NOTE_MAX+1))))
-
-# Allocate space to run an FFT. 
-buf = np.zeros(SAMPLES_PER_FFT, dtype=np.float32)
 
 # Instantiate mouse and keyboard objects
 keyboard = kb.Controller()
@@ -297,7 +296,7 @@ inputLayout.pack(pady=20,padx=10)
 l = Label(inputLayout, text='Selected Device')
 l.grid(row =0, column=0, padx=5,pady=5,sticky='w')
 
-
+currentInput = selectedInput()
 # For loop for the input Devices and generate the variables and rows for it
 for i in range(0, len(inputs)):
     inputName = inputs[i]

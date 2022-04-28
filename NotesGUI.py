@@ -10,7 +10,50 @@ global stream
 
 global input_index
 input_index = -1
- 
+
+r = {
+        # Each freq should be a full step higher than the last
+        # Low E String
+        'space':164,
+        'escape':99,
+        'left click':105, 
+        'right click':117, 
+        'enter':128,  
+        'backspace':146,  
+
+        # A String
+        'z':158,
+        'x':175, 
+        'c':199, 
+        'v':222, 
+        'b':246, 
+        'n':275, 
+        'm':310, 
+
+        # D String
+        'a':263, 
+        's':292, 
+        'd':328, 
+        'f':369, 
+        'g':416, 
+        'h':468, 
+        'j':521, 
+        'k':585, 
+        'l':656, 
+
+        # G String
+        'q':351, 
+        'w':392, 
+        'e':439, 
+        'r':492, 
+        't':556, 
+        'y':621, 
+        'u':697, 
+        'i':785, 
+        'o':878, 
+        'p':990
+        }
+
 def print_selection(title, var, index):
     global input_index
 
@@ -19,6 +62,12 @@ def print_selection(title, var, index):
         input_index = index
     else:
         l.config(text='Please Select Input Device')
+
+def calibrate(key):
+    # Calibrate the values of the dictionary holding
+    # the frequencies and the cooresponding button
+    if key.lower() in r:
+        return
 
 def keyPresser(res):
     # Some keys such as space and enter, require a different
@@ -82,48 +131,7 @@ def startStream():
     windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, SAMPLES_PER_FFT, False)))
 
     # Dictionary of Hz-to-key
-    r = {
-        # Each freq should be a full step higher than the last
-        # Low E String
-        (164): 'space',
-        (99):  'escape',
-        (105): 'left click',
-        (117): 'right click',
-        (128):  'enter',
-        (146):  'backspace',
-
-        # A String
-        (158): 'z',
-        (175): 'x',
-        (199): 'c',
-        (222): 'v',
-        (246): 'b',
-        (275): 'n',
-        (310): 'm',
-
-        # D String
-        (263): 'a',
-        (292): 's',
-        (328): 'd',
-        (369): 'f',
-        (416): 'g',
-        (468): 'h',
-        (521): 'j',
-        (585): 'k',
-        (656): 'l',
-
-        # G String
-        (351): 'q',
-        (392): 'w',
-        (439): 'e',
-        (492): 'r',
-        (556): 't',
-        (621): 'y',
-        (697): 'u',
-        (785): 'i',
-        (878): 'o',
-        (990): 'p'
-        }
+   
 
     # Print initial text
     print ('sampling at', FSAMP, 'Hz with max resolution of', FREQ_STEP, 'Hz')
@@ -164,8 +172,11 @@ def startStream():
 
                 # If the reported frequency is in the dictionary of values,
                 # the designated key is assigned to res
-                if(freq in r):
-                    res = r[freq]
+                if(freq in r.values()):
+                    key_list = list(r.keys())
+                    val_list = list(r.values())
+                    position = val_list.index(freq)
+                    res = key_list[position]
 
                 # If res is blank,the last held key is released,
                 # as well as tells Tkinter to release the key visually
@@ -311,15 +322,14 @@ for j in range(0,len(layout)):
     # loop goes through each element in the list
     for i in range(0, len(layout[j])):
 
+        commandArgs = partial(calibrate, layout[j][i])
+
         # Creates a variable called buttonX where X is the element inside the list in the list
         # Also creates a Tkinter button with the text of X
         globals()['button%s' % layout[j][i]] = Button(keyLayout, text =layout[j][i])
 
-        # This is for the future where I want to be able to set the frequency for each key
-        # globals()['button%s' % layout[j][i]].config(width=4,height=2,relief=RAISED, command=lowerButton)
-
         # Uses variable buttonX and configures it to the correct width and height
-        globals()['button%s' % layout[j][i]].config(width=4,height=2)
+        globals()['button%s' % layout[j][i]].config(width=4,height=2, command=commandArgs)
 
         # If/else for the first item to not have the columnspan argument since it can't start at 0
         # Otherwise, the item has a column span of j*2

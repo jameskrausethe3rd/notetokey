@@ -6,9 +6,6 @@ import pynput.keyboard as kb
 import pynput.mouse as ms
 from functools import partial
 
-#global num_frames
-#num_frames = 0
-
 global stream
 
 global input_index
@@ -263,7 +260,7 @@ def number_to_freq(n):
 # See docs for numpy.rfftfreq()
 def note_to_fftbin(n): 
     return number_to_freq(n)/FREQ_STEP
-    
+
 imin = max(0, int(np.floor(note_to_fftbin(NOTE_MIN-1))))
 imax = min(SAMPLES_PER_FFT, int(np.ceil(note_to_fftbin(NOTE_MAX+1))))
 

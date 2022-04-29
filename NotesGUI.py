@@ -1,5 +1,6 @@
 from tkinter import *
 from turtle import left
+import time
 import numpy as np
 import pyaudio
 import pynput.keyboard as kb
@@ -9,48 +10,48 @@ from functools import partial
 global stream
 
 class letterDictionary:
-    assignments = {
-            # Each freq should be a full step higher than the last
-            # Low E String
-            'space':164,
-            'esc':99,
-            'left click':105, 
-            'right click':117, 
-            'enter':128,  
-            'backspace':146,  
+    # assignments = {# Each freq should be a full step higher than the last
+    #         # Low E String
+    #         'space':164,
+    #         'esc':99,
+    #         'left click':105, 
+    #         'right click':117, 
+    #         'enter':128,  
+    #         'backspace':146,  
 
-            # A String
-            'z':158,
-            'x':175, 
-            'c':199, 
-            'v':222, 
-            'b':246, 
-            'n':275, 
-            'm':310, 
+    #         # A String
+    #         'z':158,
+    #         'x':175, 
+    #         'c':199, 
+    #         'v':222, 
+    #         'b':246, 
+    #         'n':275, 
+    #         'm':310, 
 
-            # D String
-            'a':263, 
-            's':292, 
-            'd':328, 
-            'f':369, 
-            'g':416, 
-            'h':468, 
-            'j':521, 
-            'k':585, 
-            'l':656, 
+    #         # D String
+    #         'a':263, 
+    #         's':292, 
+    #         'd':328, 
+    #         'f':369, 
+    #         'g':416, 
+    #         'h':468, 
+    #         'j':521, 
+    #         'k':585, 
+    #         'l':656, 
 
-            # G String
-            'q':351, 
-            'w':392, 
-            'e':439, 
-            'r':492, 
-            't':556, 
-            'y':621, 
-            'u':697, 
-            'i':785, 
-            'o':878, 
-            'p':990
-            }
+    #         # G String
+    #         'q':351, 
+    #         'w':392, 
+    #         'e':439, 
+    #         'r':492, 
+    #         't':556, 
+    #         'y':621, 
+    #         'u':697, 
+    #         'i':785, 
+    #         'o':878, 
+    #         'p':990
+    #         }
+    assignments = {}
 
 class selectedInput:
     input_index = -1
@@ -69,7 +70,7 @@ class pyaudioSettings:
         self.NOTE_MIN = 20       # C4
         self.NOTE_MAX = 500     # A4
         self.FSAMP = 48000      # Sampling frequency in Hz
-        self.FRAME_SIZE = 1024   # How many samples per frame?
+        self.FRAME_SIZE = 512   # How many samples per frame?
         self.FRAMES_PER_FFT = 8  # FFT takes average across how many frames?
 
         ######################################################################
@@ -109,16 +110,16 @@ def displaySelection(title, var, index):
     else:
         l.config(text="Please select a device")
 
-def calibrate(key):
+def calibrate(key, letters):
     # Calibrate the values of the dictionary holding
     # the frequencies and the cooresponding button
-    if key.lower() in letters.assignments:
-
-        # Implement waiting logic so there is time for the user to play the sound
-        # they want to change the letter to.
-        # Basically wait 2 seconds, then
-        # key.value = freq
-        return
+    print("play note for 2 seconds")
+    time.sleep(2)
+    freq = getFreq()
+    print(freq)
+    print(letters.assignments)
+    letters.assignments[key.lower()] = freq
+    print(letters.assignments)
 
 def keyPresser(res):
     # Some keys such as space and enter, require a different
@@ -190,6 +191,8 @@ def startStream():
     # Print initial text
     print ('sampling at', settings.FSAMP, 'Hz with max resolution of', settings.FREQ_STEP, 'Hz')
     
+    print(letters.assignments)
+
     # Declare keyDown, lastKey, and num_frames outside of the loop
     # since their value needs to be retained between loops
     keyDown = False
@@ -222,7 +225,7 @@ def startStream():
                 # res is the value of the current key being held
                 res = ""
 
-                #print (freq)
+                print (freq)
 
                 # If the reported frequency is in the dictionary of values,
                 # the designated key is assigned to res
@@ -252,6 +255,58 @@ def startStream():
     # catches the exception OSError for when the stop button is pressed
     except OSError:
         print("Stream has stopped")
+
+def getFreq():
+    settings = pyaudioSettings()
+    
+
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paInt16,
+                    channels=1,
+                    rate=settings.FSAMP,
+                    input=True,
+                    frames_per_buffer=settings.FRAME_SIZE,
+                    input_device_index=currentInput.input_index)
+
+    if currentInput.input_index == -1:
+        print("Select input")
+        return
+    else:
+        stream.start_stream()
+
+    # Create Hanning window function
+    windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, settings.SAMPLES_PER_FFT, False)))
+
+    # Dictionary of Hz-to-key
+    
+    # Declare keyDown, lastKey, and num_frames outside of the loop
+    # since their value needs to be retained between loops
+    keyDown = False
+    lastKey = ""
+    num_frames = 0
+
+    # As long as we are getting data, register keys. If stream stops, 
+    # catch the exception and print it:
+    try:
+        for i in range(20):
+
+            # Update the Tkinter window
+            window.update()
+
+            # Shift the buffer down and new data in
+            settings.buf[:-settings.FRAME_SIZE] = settings.buf[settings.FRAME_SIZE:]
+            settings.buf[-settings.FRAME_SIZE:] = np.frombuffer(stream.read(settings.FRAME_SIZE), np.int16)
+
+            # Run the FFT on the windowed buffer
+            fft = np.fft.rfft(settings.buf * windows)
+
+            # Get frequency of maximum response in range
+            freq = int((np.abs(fft[settings.imin:settings.imax]).argmax() + settings.imin) * settings.FREQ_STEP)
+        stream.close()
+    except OSError:
+        print("Calibration Complete")
+
+    return freq
 
 def stopStream():
     # Closes PyAudio stream
@@ -332,7 +387,7 @@ for j in range(0,len(layout)):
     # loop goes through each element in the list
     for i in range(0, len(layout[j])):
 
-        commandArgs = partial(calibrate, layout[j][i])
+        commandArgs = partial(calibrate, layout[j][i], letters)
 
         # Creates a variable called buttonX where X is the element inside the list in the list
         # Also creates a Tkinter button with the text of X

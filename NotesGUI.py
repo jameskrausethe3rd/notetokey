@@ -1,6 +1,10 @@
 from tkinter import *
-from turtle import left
+from tkinter import messagebox
+from tkinter import filedialog
+from turtle import bgcolor, left
 import time
+import json
+import pickle
 import numpy as np
 import pyaudio
 import pynput.keyboard as kb
@@ -103,12 +107,51 @@ class pyaudioSettings:
         # See docs for numpy.rfftfreq()
         return self.number_to_freq(n)/self.FREQ_STEP
 
+class keyBoardLayout:
+    order = [
+        ['Q','W','E','R','T','Y','U','I','O','P'],
+        ['A','S','D','F','G','H','J','K','L'],
+        ['Z','X','C','V','B','N','M']]
+
 def displaySelection(title, var, index):
     if(var.get() == 1):
         currentInput.setSelectedInput(index)
         l.config(text=title)   
     else:
         l.config(text="Please select a device")
+
+def clearAssignments():
+    letters.assignments = {}
+    messagebox.showinfo("Clear", "Assignments Cleared!")
+
+def saveAssignments():
+    try:
+        folder_path = filedialog.asksaveasfile(defaultextension='.csv', filetypes=[("csv files", '*.csv')],title="Choose filename").name     
+        with open(folder_path, 'w') as convert_file:
+            convert_file.write(json.dumps(letters.assignments))
+        messagebox.showinfo("Save", "Assignments Saved!")
+
+        currentFile = folder_path.split('/')[-1]
+        window.title('Note to Key - ' + currentFile)
+    except AttributeError:
+        messagebox.showinfo("Save", "No file specified")
+    except:
+        messagebox.showinfo("Save", "Error")
+
+def loadAssignments():
+    try:
+        folder_path = filedialog.askopenfilename(defaultextension='.csv', filetypes=[("csv files", '*.csv')],title="Choose filename")   
+        with open(folder_path, "r") as scan:
+            str = eval(scan.read())
+            letters.assignments = str
+        messagebox.showinfo("Save", "Assignments loaded!")
+
+        currentFile = folder_path.split('/')[-1]
+        window.title('Note to Key - ' + currentFile)
+    except AttributeError:
+        messagebox.showinfo("Save", "No file specified")
+    except:
+        messagebox.showinfo("Save", "Error")
 
 def calibrate(key, letters):
     # Calibrate the values of the dictionary holding
@@ -181,6 +224,8 @@ def startStream():
         return
     else:
         stream.start_stream()
+        button_start.config(background='green')
+
 
     # Create Hanning window function
     windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, settings.SAMPLES_PER_FFT, False)))
@@ -288,7 +333,7 @@ def getFreq():
     # As long as we are getting data, register keys. If stream stops, 
     # catch the exception and print it:
     try:
-        for i in range(20):
+        for i in range(200):
 
             # Update the Tkinter window
             window.update()
@@ -311,6 +356,7 @@ def getFreq():
 def stopStream():
     # Closes PyAudio stream
     stream.close()
+    button_start.config(background='SystemButtonFace')
 
 def lowerButton(letter):
     # Takes value from res, converts to upper, references
@@ -378,30 +424,30 @@ keyLayout = LabelFrame(window, text='Keyboard', padx=20,pady=5)
 keyLayout.pack(pady=20,padx=10)
 
 # List with lists of each rows
-layout= [['Q','W','E','R','T','Y','U','I','O','P'],['A','S','D','F','G','H','J','K','L'],['Z','X','C','V','B','N','M']]
+layout = keyBoardLayout()
 
 # For loop for the keyboard and generate it into the right layout
 # loop goes through the 3 main elements
-for j in range(0,len(layout)):
+for j in range(0,len(layout.order)):
     
     # loop goes through each element in the list
-    for i in range(0, len(layout[j])):
+    for i in range(0, len(layout.order[j])):
 
-        commandArgs = partial(calibrate, layout[j][i], letters)
+        commandArgs = partial(calibrate, layout.order[j][i], letters)
 
         # Creates a variable called buttonX where X is the element inside the list in the list
         # Also creates a Tkinter button with the text of X
-        globals()['button%s' % layout[j][i]] = Button(keyLayout, text =layout[j][i])
+        globals()['button%s' % layout.order[j][i]] = Button(keyLayout, text =layout.order[j][i])
 
         # Uses variable buttonX and configures it to the correct width and height
-        globals()['button%s' % layout[j][i]].config(width=4,height=2, command=commandArgs)
+        globals()['button%s' % layout.order[j][i]].config(width=4,height=2, command=commandArgs)
 
         # If/else for the first item to not have the columnspan argument since it can't start at 0
         # Otherwise, the item has a column span of j*2
         if j == 0:
-            globals()['button%s' % layout[j][i]].grid(row =j, column=i)
+            globals()['button%s' % layout.order[j][i]].grid(row =j, column=i)
         else:
-            globals()['button%s' % layout[j][i]].grid(row =j, column=i, columnspan=j*2)
+            globals()['button%s' % layout.order[j][i]].grid(row =j, column=i, columnspan=j*2)
 
 # Create a layout for the Action buttons
 actionLayout = LabelFrame(window, text='Actions', padx=20,pady=5)
@@ -440,8 +486,17 @@ button_start = Button(window, text ="Start", command=startStream)
 button_start.config(width=20, height=2)
 button_stop = Button(window, text ="Stop", command=stopStream)
 button_stop.config(width=20, height=2)
+button_clear = Button(window, text ="Clear", command=clearAssignments)
+button_clear.config(width=20, height=2)
+button_save = Button(window, text ="Save", command=saveAssignments)
+button_save.config(width=20, height=2)
+button_load = Button(window, text ="Load", command=loadAssignments)
+button_load.config(width=20, height=2)
 button_start.pack()
-button_stop.pack(padx=5,pady=5)
+button_stop.pack()
+button_save.pack()
+button_load.pack()
+button_clear.pack(padx=5,pady=5)
 
 # Mainloop
 window.mainloop()

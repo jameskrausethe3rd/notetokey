@@ -5,7 +5,6 @@ from tkinter import filedialog
 from threading import *
 import time
 import json
-import pickle
 import numpy as np
 import pyaudio
 import pynput.keyboard as kb
@@ -59,13 +58,20 @@ class letterDictionary:
     assignments = {}
 
 class selectedInput:
+
+    # Sets input_index to -1 so can later check if an
+    # input has been selected or not
     input_index = -1
 
+    # Function that changes the input_index
     def setSelectedInput(self, index):
         self.input_index = index
 
 class pyaudioSettings:
 
+    # This is a function with the basic settings of the
+    # calculations used to derive the frequency from the
+    # microphone. Based on tuner.py from Matt Zucker
     def __init__(self):
         ######################################################################
         # Feel free to play with these numbers. Might want to change NOTE_MIN
@@ -109,12 +115,17 @@ class pyaudioSettings:
         return self.number_to_freq(n)/self.FREQ_STEP
 
 class keyBoardLayout:
+    # List with the letters required to create the keyboard layout
+    # along with them being separatd into the correct rows
     order = [
         ['Q','W','E','R','T','Y','U','I','O','P'],
         ['A','S','D','F','G','H','J','K','L'],
         ['Z','X','C','V','B','N','M']]
 
 def displaySelection(title, var, index):
+
+    # Function to set the selected input
+    # in the display section at the top
     if(var.get() == 1):
         currentInput.setSelectedInput(index)
         l.config(text=title)   
@@ -122,49 +133,96 @@ def displaySelection(title, var, index):
         l.config(text="Please select a device")
 
 def clearAssignments():
+
+    # Sets the letters.assignments dictionary to blank
+    # and then creates a messagebox so the user knows
+    # that the assignments have been cleared
     letters.assignments = {}
     messagebox.showinfo("Clear", "Assignments Cleared!")
 
 def saveAssignments():
+
+    # Allows the user to save assignments to a csv file. Uses a try/except
+    # in case the user doesn't select a file or another error occurs
     try:
-        folder_path = filedialog.asksaveasfile(defaultextension='.csv', filetypes=[("csv files", '*.csv')],title="Choose filename").name     
+        
+        # Opens a explorer window that allows you to set the directory and name for the file. Sets that to folder_path
+        folder_path = filedialog.asksaveasfile(defaultextension='.csv', filetypes=[("csv files", '*.csv')],title="Choose filename").name    
+
+        # Open the file, dump the keys/values, then close it 
         with open(folder_path, 'w') as convert_file:
             convert_file.write(json.dumps(letters.assignments))
+
+        # Display a message box confirming the assignments were saved
         messagebox.showinfo("Save", "Assignments Saved!")
 
+        # Strips just the file name and adds the saved file to the title bar so the user can know what preset
+        # of assignments they are currently using
         currentFile = folder_path.split('/')[-1]
         window.title('Note to Key - ' + currentFile)
+
+    # AttributeError occurs when the person doesn't enter a name or just closes the window
     except AttributeError:
         messagebox.showinfo("Save", "No file specified")
+
+    # Any other possible errors will display "Error"
     except:
         messagebox.showinfo("Save", "Error")
 
 def loadAssignments():
+
+    # Allows the user to load assignments from a csv file. Uses a try/except
+    # in case the user doesn't select a file or another error occurs
     try:
+
+        # Opens a explorer window that allows you to set the directory and name of the file. Sets that to folder_path
         folder_path = filedialog.askopenfilename(defaultextension='.csv', filetypes=[("csv files", '*.csv')],title="Choose filename")   
+
+        # Opens the file, reads each key/value pair, saves them into letters.assignments
         with open(folder_path, "r") as scan:
             str = eval(scan.read())
             letters.assignments = str
-        messagebox.showinfo("Save", "Assignments loaded!")
 
+        # Displays a messagebox to confirm that the assignments were loaded
+        messagebox.showinfo("Load", "Assignments loaded!")
+
+        # Strips just the file name and adds the saved file to the title bar so the user can know what preset
+        # of assignments they are currently using
         currentFile = folder_path.split('/')[-1]
         window.title('Note to Key - ' + currentFile)
+
+    # If the user closes the box or doesn't pick a file it will display this message box
     except:
         messagebox.showinfo("Load", "No file specified")
 
 def showAssignments():
-    deez = ''
+
+    # Reads each key/value pair from letters.assignments and puts them in a messagebox
+    # for the user to see
+
+    # Instantiates assign
+    assign = ''
+
+    # Loops through letters.assignments and adds the key and value to assign
     for key in letters.assignments:
-        deez += ("Key: " + str(key) + ' Freq: ' + str(letters.assignments[key]) + '\n')
-    messagebox.showinfo("Show", deez)
+        assign += ("Key: " + str(key) + ' Freq: ' + str(letters.assignments[key]) + '\n')
+
+    # Shows a message box with assign
+    messagebox.showinfo("Show", assign)
 
 def calibrate(key, letters):
     # Calibrate the values of the dictionary holding
     # the frequencies and the cooresponding button
+
+    # Prints in the console to play a note for 2 seconds and sleeps for 2 seconds before calling
+    # getFreq. Needs to be updated as the getFreq() method takes about 2 additional seconds to
+    # execute
     print("play note for 2 seconds")
     time.sleep(2)
     freq = getFreq()
     letters.assignments[key.lower()] = freq
+
+    # Displays a messagebox to the user
     messagebox.showinfo("Calibrate", "Done!")
 
 def keyPresser(res):
@@ -211,6 +269,8 @@ def keyReleaser(lastKey):
 
 def startStream():
     global stream
+
+    # Creates a pyaudioSettings object and saves it in settings
     settings = pyaudioSettings()
     
 
@@ -232,9 +292,6 @@ def startStream():
 
     # Create Hanning window function
     windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, settings.SAMPLES_PER_FFT, False)))
-
-    # Dictionary of Hz-to-key
-   
 
     # Print initial text
     print ('sampling at', settings.FSAMP, 'Hz with max resolution of', settings.FREQ_STEP, 'Hz')
@@ -482,12 +539,7 @@ for j in range(0,len(misc)):
         # Uses variable buttonX and configures it to the correct width and height
         globals()['button%s' % misc[j][i]].config(width=10,height=2)
 
-        # If/else for the first item to not have the columnspan argument since it can't start at 0
-        # Otherwise, the item has a column span of j*3
-        if j == 0:
-            globals()['button%s' % misc[j][i]].grid(row =j, column=i)
-        else:
-            globals()['button%s' % misc[j][i]].grid(row =j, column=i)
+        globals()['button%s' % misc[j][i]].grid(row =j, column=i)
 
 buttonsLayout = LabelFrame(window, text='Functions',padx=20,pady=5)
 buttonsLayout.grid(row=2,column=0, padx=20,pady=(0,20),sticky='nw')

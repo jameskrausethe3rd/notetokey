@@ -1,7 +1,8 @@
+from concurrent.futures import thread
 from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
-from turtle import bgcolor, left
+from threading import *
 import time
 import json
 import pickle
@@ -148,10 +149,14 @@ def loadAssignments():
 
         currentFile = folder_path.split('/')[-1]
         window.title('Note to Key - ' + currentFile)
-    except AttributeError:
-        messagebox.showinfo("Save", "No file specified")
     except:
-        messagebox.showinfo("Save", "Error")
+        messagebox.showinfo("Load", "No file specified")
+
+def showAssignments():
+    deez = ''
+    for key in letters.assignments:
+        deez += ("Key: " + str(key) + ' Freq: ' + str(letters.assignments[key]) + '\n')
+    messagebox.showinfo("Show", deez)
 
 def calibrate(key, letters):
     # Calibrate the values of the dictionary holding
@@ -159,10 +164,8 @@ def calibrate(key, letters):
     print("play note for 2 seconds")
     time.sleep(2)
     freq = getFreq()
-    print(freq)
-    print(letters.assignments)
     letters.assignments[key.lower()] = freq
-    print(letters.assignments)
+    messagebox.showinfo("Calibrate", "Done!")
 
 def keyPresser(res):
     # Some keys such as space and enter, require a different
@@ -361,12 +364,18 @@ def stopStream():
 def lowerButton(letter):
     # Takes value from res, converts to upper, references
     # the correct button for that letter, and sets it to sunken
-    globals()['button%s' % letter.upper()].config(relief=SUNKEN)
+    globals()['button%s' % letter.upper()].config(relief=SUNKEN, background='green')
 
 def raiseButton(letter):
     # Takes value from res, converts to upper, references
     # the correct button for that letter, and sets it to raised
-    globals()['button%s' % letter.upper()].config(relief=RAISED)
+    globals()['button%s' % letter.upper()].config(relief=RAISED,background='SystemButtonFace')
+
+def threading():
+    # Implement threading
+    # t1=Thread(target=startStream)
+    # t1.start()
+    return
 
 def getInputs():
     # Creates PyAudio object to variable p, sets info to device inputs
@@ -397,8 +406,8 @@ window.title('Note to Key')
 inputs = getInputs()
 
 # Create a layout for the Devices
-inputLayout = LabelFrame(window, text='Devices', padx=20,pady=5)
-inputLayout.pack(pady=20,padx=10)
+inputLayout = LabelFrame(window, text='Devices')
+inputLayout.grid(row=0,column=0,sticky='nw', padx=20,pady=(20,0))
 
 # Create a label for selected device that will be updated with the current selection
 l = Label(inputLayout, text='Selected Device')
@@ -421,7 +430,7 @@ for i in range(0, len(inputs)):
 
 # Create a layout for the Keyboard buttons
 keyLayout = LabelFrame(window, text='Keyboard', padx=20,pady=5)
-keyLayout.pack(pady=20,padx=10)
+keyLayout.grid(row=1,column=0, sticky='w', padx=20)
 
 # List with lists of each rows
 layout = keyBoardLayout()
@@ -451,7 +460,7 @@ for j in range(0,len(layout.order)):
 
 # Create a layout for the Action buttons
 actionLayout = LabelFrame(window, text='Actions', padx=20,pady=5)
-actionLayout.pack(pady=20,padx=10)
+actionLayout.grid(row=1,column=0, sticky='e',padx=20)
 
 # List with lists of each rows
 misc =[["BACKSPACE", "ESC"], ["ENTER", "SPACE"], ["LEFT CLICK", "RIGHT CLICK"]]
@@ -480,23 +489,31 @@ for j in range(0,len(misc)):
         else:
             globals()['button%s' % misc[j][i]].grid(row =j, column=i)
 
+buttonsLayout = LabelFrame(window, text='Functions',padx=20,pady=5)
+buttonsLayout.grid(row=2,column=0, padx=20,pady=(0,20),sticky='nw')
+
 # Create and pack the Start and Stop button that execute the startStream and stopStream
 # functions respectively
-button_start = Button(window, text ="Start", command=startStream)
+button_start = Button(buttonsLayout, text ="Start", command=startStream)
 button_start.config(width=20, height=2)
-button_stop = Button(window, text ="Stop", command=stopStream)
+button_stop = Button(buttonsLayout, text ="Stop", command=stopStream)
 button_stop.config(width=20, height=2)
-button_clear = Button(window, text ="Clear", command=clearAssignments)
+button_clear = Button(buttonsLayout, text ="Clear", command=clearAssignments)
 button_clear.config(width=20, height=2)
-button_save = Button(window, text ="Save", command=saveAssignments)
+button_save = Button(buttonsLayout, text ="Save", command=saveAssignments)
 button_save.config(width=20, height=2)
-button_load = Button(window, text ="Load", command=loadAssignments)
+button_load = Button(buttonsLayout, text ="Load", command=loadAssignments)
 button_load.config(width=20, height=2)
-button_start.pack()
-button_stop.pack()
-button_save.pack()
-button_load.pack()
-button_clear.pack(padx=5,pady=5)
+button_show = Button(buttonsLayout, text ="Show", command=showAssignments)
+button_show.config(width=20, height=2)
+
+button_start.grid(row=1,column=0)
+button_stop.grid(row=1,column=1)
+button_save.grid(row=0,column=0)
+button_load.grid(row=0,column=1)
+button_clear.grid(row=0,column=2)
+button_show.grid(row=0,column=3)
+
 
 # Mainloop
 window.mainloop()

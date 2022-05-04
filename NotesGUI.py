@@ -1,8 +1,6 @@
-from concurrent.futures import thread
 from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
-from threading import *
 import time
 import json
 import numpy as np
@@ -199,16 +197,19 @@ def showAssignments():
 
     # Reads each key/value pair from letters.assignments and puts them in a messagebox
     # for the user to see
+    if letters.assignments == {}:
+        messagebox.showinfo("Show", "No assignments!")
+    
+    else:
+        # Instantiates assign
+        assign = ''
 
-    # Instantiates assign
-    assign = ''
+        # Loops through letters.assignments and adds the key and value to assign
+        for key in letters.assignments:
+            assign += ("Key: " + str(key) + ' Freq: ' + str(letters.assignments[key]) + '\n')
 
-    # Loops through letters.assignments and adds the key and value to assign
-    for key in letters.assignments:
-        assign += ("Key: " + str(key) + ' Freq: ' + str(letters.assignments[key]) + '\n')
-
-    # Shows a message box with assign
-    messagebox.showinfo("Show", assign)
+        # Shows a message box with assign
+        messagebox.showinfo("Show", assign)
 
 def calibrate(key, letters):
     # Calibrate the values of the dictionary holding
@@ -294,9 +295,7 @@ def startStream():
     windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, settings.SAMPLES_PER_FFT, False)))
 
     # Print initial text
-    print ('sampling at', settings.FSAMP, 'Hz with max resolution of', settings.FREQ_STEP, 'Hz')
-    
-    print(letters.assignments)
+    #print ('sampling at', settings.FSAMP, 'Hz with max resolution of', settings.FREQ_STEP, 'Hz')
 
     # Declare keyDown, lastKey, and num_frames outside of the loop
     # since their value needs to be retained between loops
@@ -343,7 +342,7 @@ def startStream():
                 # If res is blank,the last held key is released,
                 # as well as tells Tkinter to release the key visually
                 if res == "" and keyDown == True:
-                    print (lastKey + " has been released")
+                    #print (lastKey + " has been released")
                     keyReleaser(lastKey)
                     keyDown = False
                     raiseButton(lastKey)
@@ -351,7 +350,7 @@ def startStream():
                 # If res has a value,the key is pressed,
                 # as well as tells Tkinter to press the key visually
                 if res != "" and keyDown == False:
-                    print (res + " has been pressed down")
+                    #print (res + " has been pressed down")
                     keyPresser(res)
                     keyDown = True
                     lastKey = res
@@ -381,8 +380,6 @@ def getFreq():
 
     # Create Hanning window function
     windows = 0.5 * (1 - np.cos(np.linspace(0, 2*np.pi, settings.SAMPLES_PER_FFT, False)))
-
-    # Dictionary of Hz-to-key
     
     # Declare keyDown, lastKey, and num_frames outside of the loop
     # since their value needs to be retained between loops
@@ -407,6 +404,9 @@ def getFreq():
 
             # Get frequency of maximum response in range
             freq = int((np.abs(fft[settings.imin:settings.imax]).argmax() + settings.imin) * settings.FREQ_STEP)
+
+            print (freq)
+            
         stream.close()
     except OSError:
         print("Calibration Complete")
@@ -428,11 +428,9 @@ def raiseButton(letter):
     # the correct button for that letter, and sets it to raised
     globals()['button%s' % letter.upper()].config(relief=RAISED,background='SystemButtonFace')
 
-def threading():
+def threading(self):
     # Implement threading
-    # t1=Thread(target=startStream)
-    # t1.start()
-    return
+    self.t1.start()
 
 def getInputs():
     # Creates PyAudio object to variable p, sets info to device inputs
@@ -529,6 +527,8 @@ for j in range(0,len(misc)):
     # loop goes through each element in the list
     for i in range(0, len(misc[j])):
 
+        commandArgs = partial(calibrate, misc[j][i], letters)
+
         # Creates a variable called buttonX where X is the element inside the list in the list
         # Also creates a Tkinter button with the text of X
         globals()['button%s' % misc[j][i]] = Button(actionLayout, text =misc[j][i])
@@ -537,7 +537,7 @@ for j in range(0,len(misc)):
         # globals()['button%s' % layout[j][i]].config(width=4,height=2,relief=RAISED, command=lowerButton)
 
         # Uses variable buttonX and configures it to the correct width and height
-        globals()['button%s' % misc[j][i]].config(width=10,height=2)
+        globals()['button%s' % misc[j][i]].config(width=10,height=2, command=commandArgs)
 
         globals()['button%s' % misc[j][i]].grid(row =j, column=i)
 
@@ -565,7 +565,6 @@ button_save.grid(row=0,column=0)
 button_load.grid(row=0,column=1)
 button_clear.grid(row=0,column=2)
 button_show.grid(row=0,column=3)
-
 
 # Mainloop
 window.mainloop()

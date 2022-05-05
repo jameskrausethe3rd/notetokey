@@ -1,7 +1,10 @@
+import audioop
+import struct
 from tkinter import *
 from tkinter import messagebox
 from tkinter import filedialog
 import time
+import math
 import json
 import numpy as np
 import pyaudio
@@ -329,32 +332,34 @@ def startStream():
                 # res is the value of the current key being held
                 res = ""
 
-                print (freq)
+                #print (freq)
+                print(getVolume(settings))
 
-                # If the reported frequency is in the dictionary of values,
-                # the designated key is assigned to res
-                if(freq in letters.assignments.values()):
-                    key_list = list(letters.assignments.keys())
-                    val_list = list(letters.assignments.values())
-                    position = val_list.index(freq)
-                    res = key_list[position]
+                if getVolume(settings) > 30.0:
+                    # If the reported frequency is in the dictionary of values,
+                    # the designated key is assigned to res
+                    if(freq in letters.assignments.values()):
+                        key_list = list(letters.assignments.keys())
+                        val_list = list(letters.assignments.values())
+                        position = val_list.index(freq)
+                        res = key_list[position]
+                    # If res has a value,the key is pressed,
+                    # as well as tells Tkinter to press the key visually
+                    if res != "" and keyDown == False:
+                        #print (res + " has been pressed down")
+                        keyPresser(res)
+                        keyDown = True
+                        lastKey = res
+                        lowerButton(res)
 
-                # If res is blank,the last held key is released,
-                # as well as tells Tkinter to release the key visually
-                if res == "" and keyDown == True:
-                    #print (lastKey + " has been released")
-                    keyReleaser(lastKey)
-                    keyDown = False
-                    raiseButton(lastKey)
-                
-                # If res has a value,the key is pressed,
-                # as well as tells Tkinter to press the key visually
-                if res != "" and keyDown == False:
-                    #print (res + " has been pressed down")
-                    keyPresser(res)
-                    keyDown = True
-                    lastKey = res
-                    lowerButton(res)
+                else:
+                    # If res is blank,the last held key is released,
+                    # as well as tells Tkinter to release the key visually
+                    if res == "" and keyDown == True:
+                        #print (lastKey + " has been released")
+                        keyReleaser(lastKey)
+                        keyDown = False
+                        raiseButton(lastKey)
     
     # catches the exception OSError for when the stop button is pressed
     except OSError:
@@ -412,6 +417,15 @@ def getFreq():
         print("Calibration Complete")
 
     return freq
+
+def getVolume(settings):
+    data = stream.read(settings.FRAMES_PER_FFT)
+    rms = audioop.rms(data,2)
+    if rms != 0:
+        decibel = 20 * np.log10(rms)
+        return decibel
+    else:
+        return 0
 
 def stopStream():
     # Closes PyAudio stream
